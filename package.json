@@ -1,0 +1,49 @@
+{
+  "name": "nexus-ssh",
+  "version": "0.8.0",
+  "description": "Windows SSH and SFTP desktop client with compact SSH/SFTP client with refined UI, safe path following, command hints, server charts, syntax-aware file editing, and dual themes.",
+  "main": "src/main/main.js",
+  "author": "Generated for local use",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
+    "ssh2": "^1.17.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "dev.nexus.ssh",
+    "productName": "SSH",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "package.json",
+      "src/**/*",
+      "docs/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "icon": "src/renderer/assets/app-icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

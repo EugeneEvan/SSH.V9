@@ -1,0 +1,16 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SSH">
+  <defs>
+    <linearGradient id="icon-bg" x1="44" y1="36" x2="212" y2="224" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#24292f"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </linearGradient>
+    <linearGradient id="icon-accent" x1="58" y1="70" x2="206" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#58a6ff"/>
+      <stop offset="1" stop-color="#2da44e"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="208" height="208" rx="48" fill="url(#icon-bg)"/>
+  <rect x="38" y="38" width="180" height="180" rx="36" fill="none" stroke="#30363d" stroke-width="4"/>
+  <path d="M76 86L118 128L76 170" fill="none" stroke="url(#icon-accent)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M135 169H184" fill="none" stroke="#f0f6fc" stroke-width="20" stroke-linecap="round"/>
+</svg>

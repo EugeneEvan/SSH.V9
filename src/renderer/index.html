@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSH</title>
+  <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="windowShell" class="window-shell">
+    <header class="titlebar">
+      <div class="titlebar-brand">
+        <div class="app-logo" aria-hidden="true"><img src="./assets/app-icon.svg" alt=""></div>
+        <div class="app-title">SSH</div>
+      </div>
+      <div class="titlebar-file-actions" aria-hidden="true"></div>
+      <div class="titlebar-drag-region"></div>
+      <div class="window-controls">
+        <button id="settingsButton" class="title-icon-button" type="button" title="设置" aria-label="设置">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M8.7 2.8h2.6l.45 2.05c.36.14.7.34 1.02.58l1.96-.66 1.3 2.25-1.52 1.4c.03.19.05.38.05.58s-.02.39-.05.58l1.52 1.4-1.3 2.25-1.96-.66c-.32.24-.66.44-1.02.58l-.45 2.05H8.7l-.45-2.05a5.2 5.2 0 0 1-1.02-.58l-1.96.66-1.3-2.25 1.52-1.4A3.9 3.9 0 0 1 5.44 9c0-.2.02-.39.05-.58l-1.52-1.4 1.3-2.25 1.96.66c.32-.24.66-.44 1.02-.58L8.7 2.8Z" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round"></path>
+            <circle cx="10" cy="9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.35"></circle>
+          </svg>
+        </button>
+        <button id="minimizeWindowButton" class="window-control" type="button" title="最小化" aria-label="最小化">
+          <span class="control-minimize"></span>
+        </button>
+        <button id="maximizeWindowButton" class="window-control" type="button" title="最大化" aria-label="最大化">
+          <span class="control-maximize"></span>
+        </button>
+        <button id="closeWindowButton" class="window-control close" type="button" title="关闭" aria-label="关闭">
+          <span class="control-close"></span>
+        </button>
+      </div>
+    </header>
+
+    <div id="mainLayout" class="main-layout">
+      <aside id="connectionDrawer" class="connection-drawer">
+        <div class="drawer-toolbar">
+          <div class="drawer-title">连接</div>
+          <div class="drawer-actions">
+            <button id="connectionSearchToggleButton" class="title-icon-button" type="button" title="搜索连接" aria-label="搜索连接">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+                <path d="M12.4 12.4 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+              </svg>
+            </button>
+            <button id="fileMenuButton" class="title-icon-button" type="button" title="更多" aria-label="更多">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <circle cx="10" cy="5" r="1.45" fill="currentColor"></circle>
+                <circle cx="10" cy="10" r="1.45" fill="currentColor"></circle>
+                <circle cx="10" cy="15" r="1.45" fill="currentColor"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <label id="connectionSearchBox" class="search-box drawer-search collapsed" aria-label="搜索连接">
+          <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true">
+            <circle cx="8.5" cy="8.5" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+            <path d="M12.4 12.4 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+          <input id="connectionSearchInput" type="search" placeholder="搜索名称、主机或用户">
+        </label>
+        <div id="profileGroups" class="profile-list"></div>
+      </aside>
+      <div id="leftResizeHandle" class="drawer-resize-handle left" title="拖动调整连接面板宽度">
+        <button id="leftDrawerEdgeButton" class="drawer-edge-button left" type="button" title="展开或收起连接面板" aria-label="展开或收起连接面板">‹</button>
+      </div>
+
+      <main class="workspace">
+        <section class="workspace-toolbar">
+          <button id="leftDrawerToolbarButton" class="toolbar-icon-button" type="button" title="连接列表" aria-label="连接列表">☰</button>
+          <div id="tabsContainer" class="tabs-container" aria-label="会话标签"></div>
+          <button id="newTabButton" class="tab-add-button" type="button" title="新建连接" aria-label="新建连接">＋</button>
+          <div class="toolbar-spacer"></div>
+          <button id="rightDrawerToolbarButton" class="toolbar-icon-button text toolbar-obsolete" type="button" title="SFTP 面板" aria-label="SFTP 面板">SFTP</button>
+        </section>
+
+        <section id="welcomeView" class="welcome-view">
+          <div class="welcome-card">
+            <div class="welcome-header">
+              <div>
+                <div id="welcomeListTitle" class="welcome-title">列表（0）</div>
+              </div>
+              <div class="welcome-actions">
+                <label class="search-box welcome-search" aria-label="搜索连接">
+                  <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true">
+                    <circle cx="8.5" cy="8.5" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+                    <path d="M12.4 12.4 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+                  </svg>
+                  <input id="welcomeSearchInput" type="search" placeholder="搜索连接、主机、端口或用户名">
+                </label>
+                <button id="welcomeRefreshProfilesButton" class="small-button" type="button">刷新</button>
+                <button id="welcomeMaskProfilesButton" class="small-button" type="button">脱敏</button>
+                <button id="welcomeNewProfileButton" class="small-button primary" type="button">新建</button>
+              </div>
+            </div>
+            <div id="welcomeProfileList" class="welcome-profile-list"></div>
+          </div>
+        </section>
+
+        <section id="sessionView" class="session-view">
+          <section class="terminal-panel">
+            <div class="terminal-pathbar" aria-hidden="true">
+              <span class="terminal-badge">SSH</span>
+              <span id="currentPathLabel" class="path-text">/</span>
+              </div>
+            <div id="terminalWrap" class="terminal-wrap">
+              <div id="terminalSearchPanel" class="terminal-search-panel hidden">
+                <input id="terminalSearchInput" type="search" placeholder="搜索终端内容">
+                <span id="terminalSearchCount" class="terminal-search-count">0/0</span>
+                <button id="terminalSearchPrevButton" type="button" title="上一个">↑</button>
+                <button id="terminalSearchNextButton" type="button" title="下一个">↓</button>
+                <button id="terminalSearchCloseButton" type="button" title="关闭">×</button>
+              </div>
+              <div id="terminalStack" class="terminal-stack"></div>
+              <span id="inlineCommandHint" class="terminal-inline-hint hidden" aria-live="polite"></span>
+            </div>
+          </section>
+
+          <div id="rightResizeHandle" class="drawer-resize-handle right" title="拖动调整 SFTP 面板宽度">
+            <button id="rightDrawerEdgeButton" class="drawer-edge-button right" type="button" title="展开或收起 SFTP 面板" aria-label="展开或收起 SFTP 面板">›</button>
+          </div>
+
+          <aside id="sftpDrawer" class="sftp-panel">
+            <div class="sftp-header">
+              <div class="sftp-info">
+                <div class="sftp-title">SFTP</div>
+                <div id="sftpHostLabel" class="sftp-host">未连接</div>
+              </div>
+              <div class="sftp-header-actions">
+                <label class="sftp-search-box" aria-label="搜索当前目录文件">
+                  <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <circle cx="8.5" cy="8.5" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+                    <path d="M12.4 12.4 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+                  </svg>
+                  <input id="sftpSearchInput" type="search" placeholder="搜索">
+                </label>
+                <label class="switch-label"><input id="commandHintSwitch" type="checkbox" checked><span>提示</span></label>
+                <label class="switch-label"><input id="fileFollowSwitch" type="checkbox" checked><span>跟随</span></label>
+                <button id="serverStatusToolbarButton" class="small-button" type="button" title="服务器状态" aria-label="服务器状态">状态</button>
+                <button id="uploadButton" class="small-button primary" type="button">上传</button>
+                <button id="downloadButton" class="small-button" type="button">下载</button>
+                <button id="refreshFilesButton" class="icon-button" type="button" title="刷新" aria-label="刷新">↻</button>
+              </div>
+            </div>
+            <div class="sftp-switch-row hidden">
+              <input id="pathSyncSwitch" type="checkbox" checked hidden>
+              <button id="collapseRightDrawerButton" type="button" hidden></button>
+            </div>
+            <section id="serverStatusPanel" class="server-status-panel hidden" aria-label="服务器状态">
+              <div class="server-status-head">
+                <span>服务器状态</span>
+                <span id="serverStatusUpdatedText">未读取</span>
+              </div>
+              <div id="serverStatusContent" class="server-status-content">
+                <div class="server-status-empty">点击顶部“状态”读取 CPU、内存、磁盘和进程信息。</div>
+              </div>
+            </section>
+            <div id="breadcrumbList" class="breadcrumb-list"></div>
+            <div class="file-table-wrap" id="fileTableWrap">
+              <table class="file-table">
+                <thead>
+                  <tr>
+                    <th class="name-column" data-sort-key="name">名称</th>
+                    <th class="size-column" data-sort-key="size">大小</th>
+                    <th class="time-column" data-sort-key="modifiedAt">修改时间</th>
+                    <th class="permission-column">权限</th>
+                  </tr>
+                </thead>
+                <tbody id="fileTableBody">
+                  <tr><td colspan="4" class="empty-cell">连接后显示远程目录</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <footer class="statusbar">
+      <div class="status-group"><span id="connectionStatusDot" class="status-dot neutral"></span><span id="connectionStatusText">未连接</span><span id="connectionEndpoint">-</span></div>
+      <div class="status-group"><span>延迟</span><span id="latencyText">--</span></div>
+      <div class="status-group"><span>编码</span><span>UTF-8</span></div>
+      <div class="status-group"><span>Shell</span><span id="shellText">Bash / Zsh</span></div>
+      <div class="status-spacer"></div>
+      <div class="status-group"><span>快捷键</span><span data-shortcut-status>Ctrl+Shift+C / Ctrl+Shift+V / Ctrl+Shift+L</span></div>
+      <div class="status-group"><span id="sessionDurationText">00:00:00</span></div>
+    </footer>
+
+    <div id="fileMenu" style="width: 150px" class="context-menu file-menu hidden" role="menu">
+      <button id="fileMenuNewProfileButton" type="button">新建连接</button>
+      <button id="fileMenuImportButton" type="button">导入连接</button>
+      <button id="fileMenuExportButton" type="button">导出连接</button>
+    </div>
+
+    <div id="sftpContextMenu" class="context-menu hidden" role="menu">
+      <button id="contextDownloadButton" type="button">下载</button>
+      <div class="context-divider"></div>
+      <button id="contextNewFileButton" type="button">新建文件</button>
+      <button id="contextNewFolderButton" type="button">新建文件夹</button>
+      <div class="context-divider"></div>
+      <button id="contextRenameButton" type="button">重命名</button>
+      <button id="contextChmodButton" type="button">修改权限</button>
+      <button id="contextDeleteButton" type="button">删除</button>
+    </div>
+
+    <div id="tabContextMenu" class="context-menu hidden" role="menu">
+      <button id="tabDuplicateButton" type="button">复制为新标签</button>
+      <button id="tabOpenWindowButton" type="button">打开为新窗口</button>
+      <div class="context-divider"></div>
+      <button id="tabCloseOthersButton" type="button">关闭其他</button>
+      <button id="tabCloseLeftButton" type="button">关闭左侧</button>
+      <button id="tabCloseRightButton" type="button">关闭右侧</button>
+      <button id="tabCloseAllButton" type="button">关闭全部</button>
+      <div class="context-divider"></div>
+      <button id="tabCloseButton" type="button">关闭标签</button>
+    </div>
+
+    <div id="profileContextMenu" class="context-menu hidden" role="menu">
+      <button id="profileContextOpenButton" type="button">打开</button>
+      <button id="profileContextCloseButton" type="button">关闭会话</button>
+      <button id="profileContextCloseAllButton" type="button">关闭全部</button>
+      <div class="context-divider"></div>
+      <button id="profileContextEditButton" type="button">编辑</button>
+      <button id="profileContextCopyButton" type="button">复制</button>
+      <button id="profileContextRenameButton" type="button">重命名</button>
+      <button id="profileContextDeleteButton" type="button">删除</button>
+    </div>
+
+    <div id="terminalContextMenu" class="context-menu hidden" role="menu">
+      <button id="terminalContextCopyButton" type="button">复制</button>
+      <button id="terminalContextPasteButton" type="button">粘贴</button>
+      <button id="terminalContextClearButton" type="button">清屏</button>
+      <button id="terminalContextSearchButton" type="button">搜索</button>
+    </div>
+
+    <div id="noticeHost" class="notice-host"></div>
+  </div>
+
+  <dialog id="profileModal" class="profile-modal">
+    <form id="profileForm" method="dialog" class="modal-form profile-form">
+      <div class="modal-header">
+        <div>
+          <div id="profileModalTitle" class="modal-title">新建连接</div>
+          <div class="modal-subtitle">保存前可测试 SSH 与 SFTP 是否可用</div>
+        </div>
+        <button id="closeProfileModalButton" type="button" class="dialog-close-button" aria-label="关闭">×</button>
+      </div>
+
+      <input id="profileIdInput" type="hidden">
+
+      <div class="form-grid">
+        <label><span>名称</span><input id="profileNameInput" type="text" placeholder="Prod Web-01"></label>
+        <label><span>主机</span><input id="profileHostInput" type="text" placeholder="192.168.1.10" required></label>
+        <label><span>端口</span><input id="profilePortInput" type="number" value="22" min="1" max="65535" required></label>
+        <label><span>用户名</span><input id="profileUsernameInput" type="text" placeholder="root" required></label>
+        <label><span>认证方式</span><input id="profileAuthTypeInput" type="hidden" value="password"><span class="auth-segment"><button id="authPasswordButton" type="button" class="segment-button active">密码</button><button id="authKeyButton" type="button" class="segment-button">私钥</button></span></label>
+        <div class="profile-timeout-keepalive-pair" aria-label="连接超时与保活间隔">
+          <label class="profile-split-field"><span>连接超时</span><input id="profileTimeoutInput" type="number" value="20" min="5" max="300"></label>
+          <label class="profile-split-field"><span>保活间隔</span><input id="profileKeepaliveInput" type="number" value="15" min="5" max="300"></label>
+        </div>
+        <div id="profileLevelPasswordRow" class="profile-level-password-row">
+          <div class="profile-level-half">
+            <label class="profile-level-label"><span>级别</span>
+              <input id="profileColorInput" type="hidden" value="default">
+              <div id="profileColorGroup" class="color-segment color-segment--inline" role="group" aria-label="级别颜色">
+                <button type="button" data-color="default" class="active" title="默认" aria-label="默认"><span class="level-dot default" aria-hidden="true"></span></button>
+                <button type="button" data-color="gray" title="灰色" aria-label="灰色"><span class="level-dot gray" aria-hidden="true"></span></button>
+                <button type="button" data-color="green" title="绿色" aria-label="绿色"><span class="level-dot green" aria-hidden="true"></span></button>
+                <button type="button" data-color="red" title="红色" aria-label="红色"><span class="level-dot red" aria-hidden="true"></span></button>
+                <button type="button" data-color="blue" title="蓝色" aria-label="蓝色"><span class="level-dot blue" aria-hidden="true"></span></button>
+                <button type="button" data-color="amber" title="琥珀/警示" aria-label="琥珀"><span class="level-dot amber" aria-hidden="true"></span></button>
+                <button type="button" data-color="purple" title="紫色" aria-label="紫色"><span class="level-dot purple" aria-hidden="true"></span></button>
+                <button type="button" data-color="cyan" title="青色" aria-label="青色"><span class="level-dot cyan" aria-hidden="true"></span></button>
+                <button type="button" data-color="orange" title="橙色" aria-label="橙色"><span class="level-dot orange" aria-hidden="true"></span></button>
+                <button type="button" data-color="lime" title="黄绿" aria-label="黄绿"><span class="level-dot lime" aria-hidden="true"></span></button>
+                <button type="button" data-color="pink" title="品红" aria-label="品红"><span class="level-dot pink" aria-hidden="true"></span></button>
+              </div>
+            </label>
+          </div>
+          <div id="passwordAuthPanel" class="profile-password-half">
+            <label><span>密码</span><div class="inline-input secret-input"><input id="profilePasswordInput" type="password" placeholder="编辑时留空表示保持原密码" autocomplete="current-password"><button id="togglePasswordButton" type="button" class="secret-toggle" aria-label="显示或隐藏密码"><svg class="secret-icon secret-icon--reveal" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg><svg class="secret-icon secret-icon--conceal" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></label>
+          </div>
+        </div>
+        <input id="profileRemotePathInput" type="hidden" value="/">
+        <input id="profileGroupInput" type="hidden" value="默认">
+        <input id="profileStartupCommandInput" type="hidden" value="">
+      </div>
+
+      <div id="keyAuthPanel" class="auth-panel hidden">
+        <label><span>私钥路径</span><div class="inline-input"><input id="profilePrivateKeyInput" type="text" placeholder="C:\\Users\\you\\.ssh\\id_rsa"><button id="pickPrivateKeyButton" type="button" class="small-button">选择</button></div></label>
+        <label><span>私钥口令</span><div class="inline-input secret-input"><input id="profilePassphraseInput" type="password" placeholder="编辑时留空表示保持原口令" autocomplete="new-password"><button id="togglePassphraseButton" type="button" class="secret-toggle" aria-label="显示或隐藏私钥口令"><svg class="secret-icon secret-icon--reveal" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg><svg class="secret-icon secret-icon--conceal" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div></label>
+      </div>
+
+      <label class="wide-field remark-field"><span>备注</span><textarea id="profileTagsInput" class="ui-textarea" rows="4" placeholder="用途、风险说明或维护备注"></textarea></label>
+
+      <div class="checkbox-grid hidden">
+        <label class="checkbox-line"><input id="profilePathSyncInput" type="checkbox" checked><span>连接后检测终端路径</span></label>
+      </div>
+
+      <div id="profileTestResult" class="test-result hidden"></div>
+
+      <div class="modal-actions">
+        <button id="deleteProfileButton" type="button" class="danger-button">删除</button>
+        <div class="modal-actions-right">
+          <button id="testProfileButton" type="button" class="small-button">测试连接</button>
+          <button id="cancelProfileButton" type="button" class="small-button">取消</button>
+          <button id="saveProfileButton" type="submit" class="small-button primary">保存</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="exportModal" class="export-modal">
+    <form id="exportForm" method="dialog" class="modal-form export-form">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">导出连接信息</div>
+          <div class="modal-subtitle">选择需要导出的连接，可按需包含敏感字段。</div>
+        </div>
+        <button id="closeExportModalButton" type="button" class="dialog-close-button" aria-label="关闭">×</button>
+      </div>
+
+      <div class="export-toolbar">
+        <label class="checkbox-line"><input id="exportSelectAllInput" type="checkbox" checked><span>全选</span></label>
+        <label class="checkbox-line"><input id="exportSecretsInput" type="checkbox"><span>包含密码和私钥口令</span></label>
+      </div>
+
+      <div id="exportProfileList" class="export-profile-list"></div>
+
+      <div class="modal-actions right-only">
+        <div class="modal-actions-right">
+          <button id="cancelExportButton" type="button" class="small-button">取消</button>
+          <button id="confirmExportButton" type="submit" class="small-button primary">导出</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsModal" class="settings-modal">
+    <form id="settingsForm" method="dialog" class="modal-form settings-form">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">设置</div>
+        </div>
+        <button id="closeSettingsModalButton" type="button" class="dialog-close-button" aria-label="关闭">×</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">外观</div>
+        <div class="form-grid">
+          <label><span>配色</span><input id="settingsThemeSelect" type="hidden" value="light"><span class="theme-segment"><button id="settingsThemeLightButton" type="button" class="segment-button active">浅色</button><button id="settingsThemeDarkButton" type="button" class="segment-button">深色</button></span></label>
+          <label><span>终端字号</span><input id="settingsFontSizeInput" type="number" min="12" max="20" value="14"></label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">连接信息保存位置</div>
+        <label class="wide-field"><span>默认位置</span><input id="defaultStorePathInput" type="text" readonly></label>
+        <label class="wide-field"><span>当前位置</span><div class="inline-input"><input id="currentStorePathInput" type="text" readonly><button id="changeStorePathButton" type="button" class="small-button">更改位置</button></div></label>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">界面行为</div>
+        <div class="checkbox-grid settings-checkboxes">
+          <label class="checkbox-line"><input id="settingsLeftDrawerInput" type="checkbox"><span>启动时展开连接面板</span></label>
+          <label class="checkbox-line"><input id="settingsRightDrawerInput" type="checkbox" checked><span>启动时展开 SFTP 面板</span></label>
+          <label class="checkbox-line"><input id="settingsPathSyncInput" type="checkbox" checked><span>默认检测终端路径</span></label>
+          <label class="checkbox-line"><input id="settingsCommandHintInput" type="checkbox" checked><span>默认启用命令提示</span></label>
+          <label class="checkbox-line"><input id="settingsFileFollowInput" type="checkbox" checked><span>SFTP 默认跟随终端路径</span></label>
+          <label class="checkbox-line"><input id="settingsShowConnectionDetailInput" type="checkbox"><span>连接列表展示主机和用户</span></label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">快捷键</div>
+        <div class="shortcut-grid">
+          <div class="shortcut-record-row"><span>复制终端选中内容</span><button id="copyShortcutButton" type="button" class="shortcut-record-button" data-action="copy">Ctrl+Shift+C</button></div>
+          <div class="shortcut-record-row"><span>粘贴到终端</span><button id="pasteShortcutButton" type="button" class="shortcut-record-button" data-action="paste">Ctrl+Shift+V</button></div>
+          <div class="shortcut-record-row"><span>清屏</span><button id="clearShortcutButton" type="button" class="shortcut-record-button" data-action="clear">Ctrl+Shift+L</button></div>
+          <div class="shortcut-record-row"><span>搜索终端内容</span><button id="searchShortcutButton" type="button" class="shortcut-record-button" data-action="search">Ctrl+F</button></div>
+          <div class="shortcut-action-row">
+            <span>鼠标后退侧键</span>
+            <div id="mouseBackActionGroup" class="shortcut-action-group" data-target="mouseBackAction">
+              <button type="button" data-value="none">不设置</button>
+              <button type="button" data-value="sftpBack">SFTP 后退</button>
+              <button type="button" data-value="parentPath">返回上级</button>
+              <button type="button" data-value="previousTab">上个标签</button>
+              <button type="button" data-value="toggleSftp">切换 SFTP</button>
+            </div>
+          </div>
+          <div class="shortcut-action-row">
+            <span>鼠标前进侧键</span>
+            <div id="mouseForwardActionGroup" class="shortcut-action-group" data-target="mouseForwardAction">
+              <button type="button" data-value="none">不设置</button>
+              <button type="button" data-value="sftpForward">SFTP 前进</button>
+              <button type="button" data-value="terminalPath">终端路径</button>
+              <button type="button" data-value="nextTab">下个标签</button>
+              <button type="button" data-value="toggleSftp">切换 SFTP</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions right-only">
+        <div class="modal-actions-right">
+          <button id="cancelSettingsButton" type="button" class="small-button">取消</button>
+          <button id="saveSettingsButton" type="submit" class="small-button primary">保存配置</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="fileEditorModal" class="file-editor-modal">
+    <form method="dialog" class="file-editor-shell">
+      <div class="file-editor-header">
+        <div class="file-editor-title-wrap">
+          <div id="fileEditorName" class="file-editor-title">文件编辑</div>
+          <div id="fileEditorPath" class="file-editor-path">-</div>
+        </div>
+        <div class="file-editor-actions">
+          <button id="reloadRemoteFileButton" type="button" class="small-button">重新读取</button>
+          <button id="downloadPreviewFileButton" type="button" class="small-button">下载</button>
+          <button id="saveRemoteFileButton" type="button" class="small-button primary">保存</button>
+          <button id="closeFileEditorButton" type="button" class="dialog-close-button" aria-label="关闭">×</button>
+        </div>
+      </div>
+      <div id="fileEditorMeta" class="file-editor-meta">未打开文件</div>
+      <div class="file-editor-code-wrap"><pre id="fileEditorHighlight" class="file-editor-highlight" aria-hidden="true"></pre><textarea id="fileEditorTextarea" class="file-editor-textarea" spellcheck="false"></textarea></div>
+      <div id="fileEditorMessage" class="file-editor-message">文本文件支持直接编辑并保存回远程服务器。</div>
+    </form>
+  </dialog>
+
+  <dialog id="unsavedModal" class="unsaved-modal">
+    <form method="dialog" class="modal-form small-modal-form">
+      <div class="modal-title">文件尚未保存</div>
+      <div class="modal-subtitle">关闭前请选择如何处理当前修改。</div>
+      <div class="modal-actions right-only">
+        <div class="modal-actions-right">
+          <button id="unsavedCancelButton" type="button" class="small-button">继续编辑</button>
+          <button id="unsavedDiscardButton" type="button" class="small-button">放弃修改</button>
+          <button id="unsavedSaveButton" type="button" class="small-button primary">保存并关闭</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
