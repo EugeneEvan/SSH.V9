@@ -9,6 +9,7 @@ const defaultSettings = {
   fileFollow: true,
   terminalFontSize: 14,
   showConnectionDetails: false,
+  latencyRefreshSeconds: 60,
   leftDrawerWidth: 260,
   rightDrawerWidth: 520,
   mouseBackAction: 'none',
@@ -41,9 +42,12 @@ const state = {
   fileMenuOpen: false,
   serverStatusVisible: false,
   serverStatusTimer: null,
+  latencyRefreshTimer: null,
+  latencyRefreshRunning: false,
   recordingShortcutAction: '',
   profileContextId: '',
   profileMasked: false,
+  profileLatencies: {},
   sftpSort: { key: 'name', direction: 'asc' },
   terminalSearch: { query: '', matches: [], index: -1 }
 };
@@ -107,12 +111,15 @@ document.addEventListener('DOMContentLoaded', initializeApplication);
  */
 async function initializeApplication() {
   cacheElements();
+  setupDrawerToolbarLayout();
   loadApplicationSettings();
   applyApplicationSettings(false);
   bindUiEvents();
   bindMainProcessEvents();
   await loadStoreInfo();
   await loadProfiles();
+  refreshProfileLatencies({ silent: true });
+  resetLatencyRefreshTimer();
   renderWorkspaceState();
   renderTabs();
   renderActiveSession();
@@ -136,8 +143,8 @@ function cacheElements() {
     'serverStatusPanel', 'serverStatusContent', 'serverStatusUpdatedText',
     'uploadButton', 'downloadButton', 'refreshFilesButton', 'sftpSearchInput', 'pathSyncSwitch', 'commandHintSwitch', 'fileFollowSwitch',
     'breadcrumbList', 'fileTableWrap', 'fileTableBody', 'sftpContextMenu', 'tabContextMenu', 'tabDuplicateButton',
-    'tabOpenWindowButton', 'tabCloseButton', 'tabCloseOthersButton', 'tabCloseLeftButton', 'tabCloseRightButton', 'tabCloseAllButton',
-    'contextDownloadButton', 'contextNewFileButton', 'contextNewFolderButton', 'contextRenameButton',
+    'tabOpenWindowButton', 'tabServerStatusButton', 'tabCloseButton', 'tabCloseOthersButton', 'tabCloseLeftButton', 'tabCloseRightButton', 'tabCloseAllButton',
+    'contextRefreshButton', 'contextUploadButton', 'contextDownloadButton', 'contextNewFileButton', 'contextNewFolderButton', 'contextRenameButton',
     'contextChmodButton', 'contextDeleteButton', 'connectionStatusDot', 'connectionStatusText', 'connectionEndpoint',
     'latencyText', 'shellText', 'sessionDurationText', 'noticeHost', 'profileModal', 'profileForm', 'profileModalTitle',
     'closeProfileModalButton', 'profileIdInput', 'profileNameInput', 'profileGroupInput', 'profileHostInput',
@@ -155,7 +162,7 @@ function cacheElements() {
     'saveSettingsButton', 'fileEditorModal', 'fileEditorName', 'fileEditorPath', 'fileEditorMeta', 'fileEditorHighlight', 'fileEditorTextarea',
     'fileEditorMessage', 'closeFileEditorButton', 'saveRemoteFileButton', 'reloadRemoteFileButton',
     'downloadPreviewFileButton', 'unsavedModal', 'unsavedCancelButton', 'unsavedDiscardButton', 'unsavedSaveButton',
-    'profileContextMenu', 'profileContextOpenButton', 'profileContextCloseButton', 'profileContextCloseAllButton',
+    'profileContextMenu', 'profileContextOpenButton', 'profileContextCloseButton', 'profileContextCloseAllButton', 'profileContextCopyHostButton',
     'profileContextEditButton', 'profileContextCopyButton', 'profileContextRenameButton', 'profileContextDeleteButton',
     'terminalContextMenu', 'terminalContextCopyButton', 'terminalContextPasteButton', 'terminalContextClearButton', 'terminalContextSearchButton',
     'terminalSearchPanel', 'terminalSearchInput', 'terminalSearchPrevButton', 'terminalSearchNextButton', 'terminalSearchCloseButton', 'terminalSearchCount'
@@ -164,6 +171,20 @@ function cacheElements() {
   ids.forEach((id) => {
     elements[id] = document.getElementById(id);
   });
+}
+
+function setupDrawerToolbarLayout() {
+  const toolbar = elements.connectionDrawer?.querySelector('.drawer-toolbar');
+  const actions = toolbar?.querySelector('.drawer-actions');
+  if (!toolbar || !actions || !elements.connectionSearchBox) {
+    return;
+  }
+
+  if (elements.connectionSearchBox.parentElement !== toolbar) {
+    toolbar.insertBefore(elements.connectionSearchBox, actions);
+  }
+  elements.connectionSearchBox.classList.remove('collapsed');
+  elements.connectionSearchToggleButton?.setAttribute('tabindex', '-1');
 }
 
 /**
@@ -195,7 +216,7 @@ function bindUiEvents() {
   elements.collapseRightDrawerButton.addEventListener('click', () => setRightDrawerOpen(false));
   elements.newTabButton.addEventListener('click', () => openProfileModal());
   elements.welcomeNewProfileButton.addEventListener('click', () => openProfileModal());
-  elements.welcomeRefreshProfilesButton.addEventListener('click', loadProfiles);
+  elements.welcomeRefreshProfilesButton.addEventListener('click', refreshProfilesAndLatency);
   elements.welcomeMaskProfilesButton.addEventListener('click', toggleProfileMask);
   elements.connectionSearchInput.addEventListener('input', renderProfiles);
   elements.welcomeSearchInput.addEventListener('input', renderProfiles);
@@ -210,6 +231,8 @@ function bindUiEvents() {
   elements.fileTableWrap.querySelector('thead')?.addEventListener('click', handleFileSortClick);
   elements.fileTableWrap.addEventListener('dragover', handleSftpDragOver);
   elements.fileTableWrap.addEventListener('drop', handleSftpDrop);
+  elements.contextRefreshButton.addEventListener('click', () => runContextAction(refreshFileList));
+  elements.contextUploadButton.addEventListener('click', () => runContextAction(uploadFiles));
   elements.contextDownloadButton.addEventListener('click', () => runContextAction(downloadSelectedFile));
   elements.contextNewFileButton.addEventListener('click', () => runContextAction(createRemoteFile));
   elements.contextNewFolderButton.addEventListener('click', () => runContextAction(createRemoteDirectory));
@@ -218,6 +241,7 @@ function bindUiEvents() {
   elements.contextDeleteButton.addEventListener('click', () => runContextAction(deleteSelectedFile));
   elements.tabDuplicateButton.addEventListener('click', () => runTabContextAction(duplicateTab));
   elements.tabOpenWindowButton.addEventListener('click', () => runTabContextAction(openTabInNewWindow));
+  elements.tabServerStatusButton.addEventListener('click', () => runTabContextAction(openTabServerStatus));
   elements.tabCloseButton.addEventListener('click', () => runTabContextAction(closeTab));
   elements.tabCloseOthersButton.addEventListener('click', () => runTabContextAction(closeOtherTabs));
   elements.tabCloseLeftButton.addEventListener('click', () => runTabContextAction(closeTabsToLeft));
@@ -261,6 +285,7 @@ function bindUiEvents() {
   elements.profileContextOpenButton.addEventListener('click', () => runProfileContextAction(openProfileFromContext));
   elements.profileContextCloseButton.addEventListener('click', () => runProfileContextAction(closeProfileSessionsFromContext));
   elements.profileContextCloseAllButton.addEventListener('click', () => runProfileContextAction(closeAllTabs));
+  elements.profileContextCopyHostButton.addEventListener('click', () => runProfileContextAction(copyProfileHostFromContext));
   elements.profileContextEditButton.addEventListener('click', () => runProfileContextAction(editProfileFromContext));
   elements.profileContextCopyButton.addEventListener('click', () => runProfileContextAction(copyProfileFromContext));
   elements.profileContextRenameButton.addEventListener('click', () => runProfileContextAction(renameProfileFromContext));
@@ -276,7 +301,7 @@ function bindUiEvents() {
   elements.unsavedCancelButton.addEventListener('click', () => resolveUnsavedAction('cancel'));
   elements.unsavedDiscardButton.addEventListener('click', () => resolveUnsavedAction('discard'));
   elements.unsavedSaveButton.addEventListener('click', () => resolveUnsavedAction('save'));
-  document.addEventListener('keydown', handleGlobalKeydown);
+  document.addEventListener('keydown', handleGlobalKeydown, true);
   document.addEventListener('click', hideContextMenus);
   window.addEventListener('mouseup', handleMouseShortcut);
   window.addEventListener('auxclick', handleMouseShortcut);
@@ -336,6 +361,7 @@ function loadApplicationSettings() {
   updateShortcutStatusText();
   state.settings.leftDrawerWidth = normalizeNumber(state.settings.leftDrawerWidth, 260, 220, 420);
   state.settings.rightDrawerWidth = normalizeNumber(state.settings.rightDrawerWidth, 520, 360, 760);
+  state.settings.latencyRefreshSeconds = normalizeNumber(state.settings.latencyRefreshSeconds, 60, 15, 600);
   state.settings.showConnectionDetails = state.settings.showConnectionDetails === true;
 }
 
@@ -437,9 +463,9 @@ function normalizeShortcutSettings(shortcuts) {
 function getTerminalTheme(theme) {
   if (normalizeTheme(theme) === 'light') {
     return {
-      background: '#f8fafc',
+      background: 'rgba(255, 255, 255, 0)',
       foreground: '#172033',
-      cursor: '#2563eb',
+      cursor: '#1f2937',
       cursorAccent: '#ffffff',
       selectionBackground: '#c7ddff',
       black: '#172033',
@@ -462,7 +488,7 @@ function getTerminalTheme(theme) {
   }
 
   return {
-    background: '#0d1117',
+    background: 'rgba(13, 17, 23, 0)',
     foreground: '#e5edf6',
     cursor: '#38bdf8',
     cursorAccent: '#0d1117',
@@ -511,10 +537,16 @@ function renderStoreInfo() {
  */
 async function loadProfiles() {
   state.profiles = await window.nexusSsh.profiles.list();
+  pruneProfileLatencyCache();
   if (!state.selectedProfileId && state.profiles.length > 0) {
     state.selectedProfileId = state.profiles[0].id;
   }
   renderProfiles();
+}
+
+async function refreshProfilesAndLatency() {
+  await loadProfiles();
+  await refreshProfileLatencies({ silent: false });
 }
 
 /**
@@ -671,9 +703,29 @@ function buildLatencyBadge(profile) {
   const tab = state.tabs.find((item) => item.profileId === profile.id);
   const latency = Number.parseInt(tab?.latency, 10);
   if (Number.isFinite(latency)) {
-    const level = latency < 120 ? 'good' : (latency < 300 ? 'warn' : 'bad');
+    const level = getLatencyLevel(latency);
     badge.className = `latency-badge ${level}`;
     badge.textContent = `${latency}ms`;
+    return badge;
+  }
+  const cached = state.profileLatencies?.[profile.id];
+  const cachedLatency = Number.parseInt(cached?.latency, 10);
+  if (Number.isFinite(cachedLatency)) {
+    const level = getLatencyLevel(cachedLatency);
+    badge.className = `latency-badge ${level}`;
+    badge.textContent = `${cachedLatency}ms`;
+    badge.title = cached.checkedAt ? `最后检测 ${formatTime(cached.checkedAt)}` : '';
+    return badge;
+  }
+  if (cached?.status === 'checking') {
+    badge.className = 'latency-badge checking';
+    badge.textContent = '检测中';
+    return badge;
+  }
+  if (cached?.status === 'error') {
+    badge.className = 'latency-badge bad';
+    badge.textContent = '不可用';
+    badge.title = cached.message || '';
     return badge;
   }
   if (tab?.connectionStatus === 'connected') {
@@ -689,6 +741,129 @@ function buildLatencyBadge(profile) {
   badge.className = 'latency-badge unknown';
   badge.textContent = '未测';
   return badge;
+}
+
+function getLatencyLevel(latency) {
+  if (latency < 120) {
+    return 'good';
+  }
+  if (latency < 300) {
+    return 'warn';
+  }
+  return 'bad';
+}
+
+function getTabLatencyText(tab) {
+  const tabLatency = Number.parseInt(tab?.latency, 10);
+  if (Number.isFinite(tabLatency)) {
+    return `${tabLatency}ms`;
+  }
+
+  const cached = state.profileLatencies?.[tab?.profileId];
+  const cachedLatency = Number.parseInt(cached?.latency, 10);
+  if (Number.isFinite(cachedLatency)) {
+    return `${cachedLatency}ms`;
+  }
+  if (cached?.status === 'checking') {
+    return '检测中';
+  }
+  if (cached?.status === 'error') {
+    return '不可用';
+  }
+  return '--';
+}
+
+function pruneProfileLatencyCache() {
+  const ids = new Set((state.profiles || []).map((profile) => profile.id));
+  Object.keys(state.profileLatencies || {}).forEach((profileId) => {
+    if (!ids.has(profileId)) {
+      delete state.profileLatencies[profileId];
+    }
+  });
+}
+
+function resetLatencyRefreshTimer() {
+  if (state.latencyRefreshTimer) {
+    window.clearInterval(state.latencyRefreshTimer);
+    state.latencyRefreshTimer = null;
+  }
+
+  const seconds = normalizeNumber(state.settings.latencyRefreshSeconds, 60, 15, 600);
+  state.settings.latencyRefreshSeconds = seconds;
+  state.latencyRefreshTimer = window.setInterval(() => {
+    refreshProfileLatencies({ silent: true });
+  }, seconds * 1000);
+}
+
+async function refreshProfileLatencies(options = {}) {
+  if (state.latencyRefreshRunning) {
+    return;
+  }
+
+  const profiles = Array.isArray(state.profiles) ? [...state.profiles] : [];
+  if (profiles.length === 0) {
+    return;
+  }
+
+  state.latencyRefreshRunning = true;
+  const silent = options.silent === true;
+  const checkedAt = Date.now();
+  profiles.forEach((profile) => {
+    state.profileLatencies[profile.id] = {
+      ...(state.profileLatencies[profile.id] || {}),
+      status: 'checking',
+      checkedAt
+    };
+  });
+  if (!silent) {
+    renderProfiles();
+    renderActiveSession();
+  }
+
+  try {
+    const concurrency = 3;
+    for (let index = 0; index < profiles.length; index += concurrency) {
+      const batch = profiles.slice(index, index + concurrency);
+      await Promise.all(batch.map((profile) => refreshSingleProfileLatency(profile)));
+      renderProfiles();
+      renderActiveSession();
+    }
+  } finally {
+    state.latencyRefreshRunning = false;
+    renderProfiles();
+    renderActiveSession();
+  }
+}
+
+async function refreshSingleProfileLatency(profile) {
+  try {
+    const result = await window.nexusSsh.profiles.test(profile);
+    const latency = Number.parseInt(result?.latency, 10);
+    const success = result?.success === true;
+    state.profileLatencies[profile.id] = {
+      status: success ? 'ok' : 'error',
+      latency: success && Number.isFinite(latency) ? latency : null,
+      sftp: result?.sftp === true,
+      message: result?.message || '',
+      checkedAt: Date.now()
+    };
+
+    if (success && Number.isFinite(latency)) {
+      state.tabs
+        .filter((tab) => tab.profileId === profile.id)
+        .forEach((tab) => {
+          tab.latency = `${latency}ms`;
+        });
+    }
+  } catch (error) {
+    state.profileLatencies[profile.id] = {
+      status: 'error',
+      latency: null,
+      sftp: false,
+      message: error.message || '连接检测失败',
+      checkedAt: Date.now()
+    };
+  }
 }
 
 function formatEndpoint(profile) {
@@ -839,7 +1014,11 @@ function createTerminalForTab(tab) {
     cursorStyle: 'bar',
     scrollback: 20000,
     convertEol: false,
-    allowTransparency: false,
+    allowTransparency: true,
+    drawBoldTextInBrightColors: true,
+    fontWeight: 500,
+    fontWeightBold: 700,
+    minimumContrastRatio: 4.5,
     theme: getTerminalTheme(state.settings.theme)
   });
 
@@ -961,6 +1140,26 @@ async function openTabInNewWindow(tabId) {
   }
 }
 
+async function openTabServerStatus(tabId) {
+  const tab = findTab(tabId);
+  if (!tab) {
+    return;
+  }
+
+  if (state.activeTabId !== tabId) {
+    activateTab(tabId);
+  }
+  if (state.settings.rightDrawerOpen === false) {
+    await setRightDrawerOpen(true);
+  }
+
+  state.serverStatusVisible = true;
+  elements.serverStatusPanel.classList.remove('hidden');
+  elements.serverStatusToolbarButton?.classList.add('active');
+  await refreshServerStatus();
+  startServerStatusTimer();
+}
+
 /**
  * 关闭标签并断开对应 SSH 会话。
  */
@@ -1059,6 +1258,17 @@ async function connectTab(tab) {
     tab.connectionStatus = 'connected';
     tab.statusText = '已连接';
     tab.sessionStartAt = Date.now();
+    const latency = Number.parseInt(result.latency, 10);
+    if (Number.isFinite(latency)) {
+      tab.latency = `${latency}ms`;
+      state.profileLatencies[tab.profileId] = {
+        status: 'ok',
+        latency,
+        sftp: true,
+        message: '',
+        checkedAt: Date.now()
+      };
+    }
 
     if (tab.pathSync || tab.fileFollow) {
       tab.pathSync = true;
@@ -1122,7 +1332,7 @@ function renderActiveSession() {
   elements.connectionStatusText.textContent = tab.statusText || '未连接';
   elements.connectionEndpoint.textContent = `${tab.profile.host}:${tab.profile.port}`;
   elements.connectionStatusDot.className = `status-dot ${statusClass(tab.connectionStatus)}`;
-  elements.latencyText.textContent = tab.latency || '--';
+  elements.latencyText.textContent = getTabLatencyText(tab);
   elements.pathSyncSwitch.checked = tab.pathSync !== false || tab.fileFollow !== false;
   elements.commandHintSwitch.checked = tab.commandHints !== false;
   elements.fileFollowSwitch.checked = tab.fileFollow !== false;
@@ -1444,12 +1654,29 @@ function handleTerminalCustomKey(tabId, event) {
     return false;
   }
 
-  if (event.key === 'Tab' && tab.commandHints && tab.inlineSuggestion) {
-    replaceCurrentCommand(tab, tab.inlineSuggestion.command);
+  if (event.key === 'Tab') {
+    handleTerminalTabCompletion(tab);
     return false;
   }
 
   return true;
+}
+
+function handleTerminalTabCompletion(tab = getActiveTab()) {
+  if (!tab) {
+    return;
+  }
+
+  if (tab.commandHints && tab.inlineSuggestion) {
+    replaceCurrentCommand(tab, tab.inlineSuggestion.command);
+    return;
+  }
+
+  if (tab.sessionId) {
+    window.nexusSsh.ssh.write(tab.sessionId, '\t');
+  }
+
+  tab.terminal?.focus?.();
 }
 
 /**
@@ -3005,16 +3232,22 @@ function buildBreadcrumbParts(remotePath) {
 function openSftpContextMenu(event) {
   event.preventDefault();
   event.stopPropagation();
+  const tab = getActiveTab();
+  const hasSession = Boolean(tab?.sessionId);
   const selectedEntry = getSelectedFileEntry();
   const selectedEntries = getSelectedFileEntries();
   hideFileMenu();
   hideTabContextMenu();
   hideProfileContextMenu();
   hideTerminalContextMenu();
-  elements.contextDownloadButton.disabled = selectedEntries.length === 0;
-  elements.contextRenameButton.disabled = !selectedEntry;
-  elements.contextChmodButton.disabled = !selectedEntry;
-  elements.contextDeleteButton.disabled = !selectedEntry;
+  elements.contextRefreshButton.disabled = !hasSession || tab?.fileListLoading;
+  elements.contextUploadButton.disabled = !hasSession;
+  elements.contextDownloadButton.disabled = !hasSession || tab?.fileListLoading || selectedEntries.length === 0;
+  elements.contextNewFileButton.disabled = !hasSession;
+  elements.contextNewFolderButton.disabled = !hasSession;
+  elements.contextRenameButton.disabled = !hasSession || !selectedEntry;
+  elements.contextChmodButton.disabled = !hasSession || !selectedEntry;
+  elements.contextDeleteButton.disabled = !hasSession || !selectedEntry;
   elements.sftpContextMenu.style.left = `${Math.min(event.clientX, window.innerWidth - 170)}px`;
   elements.sftpContextMenu.style.top = `${Math.min(event.clientY, window.innerHeight - 210)}px`;
   elements.sftpContextMenu.classList.remove('hidden');
@@ -3035,11 +3268,13 @@ function openTabContextMenu(event, tabId) {
   event.preventDefault();
   event.stopPropagation();
   state.contextTabId = tabId;
+  const tab = findTab(tabId);
   const tabIndex = state.tabs.findIndex((tab) => tab.id === tabId);
   hideFileMenu();
   hideSftpContextMenu();
   hideProfileContextMenu();
   hideTerminalContextMenu();
+  elements.tabServerStatusButton.disabled = !tab?.sessionId;
   elements.tabCloseOthersButton.disabled = state.tabs.length <= 1;
   elements.tabCloseLeftButton.disabled = tabIndex <= 0;
   elements.tabCloseRightButton.disabled = tabIndex < 0 || tabIndex >= state.tabs.length - 1;
@@ -3141,8 +3376,10 @@ function openProfileContextMenu(event, profileId) {
   hideTabContextMenu();
   hideTerminalContextMenu();
   const hasOpenSession = state.tabs.some((tab) => tab.profileId === profileId);
+  const profile = state.profiles.find((item) => item.id === profileId);
   elements.profileContextCloseButton.disabled = !hasOpenSession;
   elements.profileContextCloseAllButton.disabled = state.tabs.length === 0;
+  elements.profileContextCopyHostButton.disabled = !profile?.host;
   elements.profileContextMenu.style.left = `${Math.min(event.clientX, window.innerWidth - 190)}px`;
   elements.profileContextMenu.style.top = `${Math.min(event.clientY, window.innerHeight - 230)}px`;
   elements.profileContextMenu.classList.remove('hidden');
@@ -3172,6 +3409,18 @@ function editProfileFromContext(profileId) {
   if (profile) {
     openProfileModal(profile);
   }
+}
+
+function copyProfileHostFromContext(profileId) {
+  const profile = state.profiles.find((item) => item.id === profileId);
+  const host = String(profile?.host || '').trim();
+  if (!host) {
+    showNotice('当前连接没有可复制的 IP。', 'error');
+    return;
+  }
+
+  window.nexusSsh.clipboard.writeText(host);
+  showNotice(`已复制 IP：${host}`, 'success');
 }
 
 async function copyProfileFromContext(profileId) {
@@ -3742,8 +3991,10 @@ function saveSettingsFromForm(event) {
   state.settings.mouseBackAction = normalizeMouseAction(state.settings.mouseBackAction);
   state.settings.mouseForwardAction = normalizeMouseAction(state.settings.mouseForwardAction);
   state.settings.shortcuts = normalizeShortcutSettings(state.settings.shortcuts);
+  state.settings.latencyRefreshSeconds = normalizeNumber(state.settings.latencyRefreshSeconds, 60, 15, 600);
   saveApplicationSettings();
   applyApplicationSettings();
+  resetLatencyRefreshTimer();
   renderProfiles();
   closeSettingsModal();
   showNotice('设置已保存。', 'success');
@@ -4093,6 +4344,16 @@ function renderShortcutButtons() {
  * 处理全局快捷键。
  */
 function handleGlobalKeydown(event) {
+  const isTerminalEvent = elements.terminalWrap?.contains(event.target);
+  const activeTerminal = getActiveTab()?.terminal;
+
+  if (event.key === 'Tab' && isTerminalEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    handleTerminalTabCompletion();
+    return;
+  }
+
   if (isFormField(event.target)) {
     return;
   }
@@ -4101,9 +4362,6 @@ function handleGlobalKeydown(event) {
     handleShortcutRecordingKey(event);
     return;
   }
-
-  const isTerminalEvent = elements.terminalWrap?.contains(event.target);
-  const activeTerminal = getActiveTab()?.terminal;
 
   if (matchesShortcut(event, state.settings.shortcuts.copy)) {
     if (isTerminalEvent && !activeTerminal?.hasSelection?.()) {

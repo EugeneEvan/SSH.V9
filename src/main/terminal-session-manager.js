@@ -25,6 +25,7 @@ class TerminalSessionManager {
       profile,
       webContents,
       currentPath: profile.remoteStartPath || '/',
+      startedAt: Date.now(),
       pathSync: profile.pathSync === true,
       pathSyncHookInstalled: false,
       pathSyncHookInstalling: false,
@@ -395,7 +396,7 @@ printf 'PROC='; ps -eo comm,%cpu,%mem --sort=-%cpu 2>/dev/null | head -n 6 | tai
       }
 
       session.settled = true;
-      resolve({ sessionId: session.id });
+      resolve({ sessionId: session.id, latency: Date.now() - session.startedAt });
     });
   }
 
