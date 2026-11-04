@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title description">
+  <title id="title">SSH.V9 功能与操作流程示意图</title>
+  <desc id="description">从保存连接到打开 SSH 终端，再到 SFTP 文件操作。展示连接管理、多会话、文件传输和文本编辑之间的关系。此图是说明性示意图，不是实际运行截图。</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1727"/>
+      <stop offset="1" stop-color="#172b43"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#4ade80"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto-start-reverse">
+      <path d="M1 1L6 4L1 7" fill="none" stroke="#8ba6c3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="650" rx="24" fill="url(#background)"/>
+  <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif">
+    <path d="M58 54L78 72L58 90M90 90H115" fill="none" stroke="url(#accent)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="137" y="83" fill="#f8fafc" font-size="36" font-weight="700">SSH.V9</text>
+    <text x="57" y="130" fill="#b6c9df" font-size="21">连接、终端、文件，在同一个工作区协作。</text>
+    <rect x="921" y="49" width="222" height="40" rx="20" fill="#213b56" stroke="#48647f"/>
+    <text x="1032" y="75" fill="#d6e7f9" font-size="17" text-anchor="middle">功能示意 · 非运行截图</text>
+
+    <rect x="56" y="176" width="340" height="326" rx="18" fill="#182b41" stroke="#36516d"/>
+    <rect x="430" y="176" width="340" height="326" rx="18" fill="#182b41" stroke="#36516d"/>
+    <rect x="804" y="176" width="340" height="326" rx="18" fill="#182b41" stroke="#36516d"/>
+    <path d="M404 338H421" fill="none" stroke="#8ba6c3" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M778 338H795" fill="none" stroke="#8ba6c3" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <rect x="80" y="200" width="48" height="38" rx="11" fill="#23476d"/>
+    <text x="104" y="226" fill="#93c5fd" font-size="19" font-weight="700" text-anchor="middle">01</text>
+    <text x="143" y="227" fill="#f1f5f9" font-size="25" font-weight="700">管理连接</text>
+    <text x="80" y="274" fill="#c0d0e1" font-size="18">保存配置，测试后打开会话</text>
+    <path d="M80 295H372" stroke="#36516d"/>
+    <circle cx="88" cy="329" r="4" fill="#60a5fa"/>
+    <text x="104" y="335" fill="#e2e8f0" font-size="19">密码 / 私钥认证</text>
+    <circle cx="88" cy="370" r="4" fill="#60a5fa"/>
+    <text x="104" y="376" fill="#e2e8f0" font-size="19">搜索连接与配置导入导出</text>
+    <circle cx="88" cy="411" r="4" fill="#60a5fa"/>
+    <text x="104" y="417" fill="#e2e8f0" font-size="19">测试 SSH 与 SFTP 可用性</text>
+    <text x="80" y="471" fill="#8faac4" font-size="17">操作入口：新建 → 测试 → 双击</text>
+
+    <rect x="454" y="200" width="48" height="38" rx="11" fill="#204d4a"/>
+    <text x="478" y="226" fill="#86efac" font-size="19" font-weight="700" text-anchor="middle">02</text>
+    <text x="517" y="227" fill="#f1f5f9" font-size="25" font-weight="700">操作终端</text>
+    <text x="454" y="274" fill="#c0d0e1" font-size="18">切换标签，执行远程命令</text>
+    <path d="M454 295H746" stroke="#36516d"/>
+    <circle cx="462" cy="329" r="4" fill="#4ade80"/>
+    <text x="478" y="335" fill="#e2e8f0" font-size="19">多标签与独立会话窗口</text>
+    <circle cx="462" cy="370" r="4" fill="#4ade80"/>
+    <text x="478" y="376" fill="#e2e8f0" font-size="19">复制、粘贴、清屏与搜索</text>
+    <circle cx="462" cy="411" r="4" fill="#4ade80"/>
+    <text x="478" y="417" fill="#e2e8f0" font-size="19">命令提示与目录跟随</text>
+    <text x="454" y="471" fill="#8faac4" font-size="17">同一配置可以建立多个独立会话</text>
+
+    <rect x="828" y="200" width="48" height="38" rx="11" fill="#4c3b61"/>
+    <text x="852" y="226" fill="#d8b4fe" font-size="19" font-weight="700" text-anchor="middle">03</text>
+    <text x="891" y="227" fill="#f1f5f9" font-size="25" font-weight="700">处理文件</text>
+    <text x="828" y="274" fill="#c0d0e1" font-size="18">通过右侧 SFTP 面板操作</text>
+    <path d="M828 295H1120" stroke="#36516d"/>
+    <circle cx="836" cy="329" r="4" fill="#c084fc"/>
+    <text x="852" y="335" fill="#e2e8f0" font-size="19">上传与下载文件 / 目录</text>
+    <circle cx="836" cy="370" r="4" fill="#c084fc"/>
+    <text x="852" y="376" fill="#e2e8f0" font-size="19">预览文本，编辑后保存</text>
+    <circle cx="836" cy="411" r="4" fill="#c084fc"/>
+    <text x="852" y="417" fill="#e2e8f0" font-size="19">新建、重命名与权限修改</text>
+    <text x="828" y="471" fill="#8faac4" font-size="17">操作前请确认目标路径与权限</text>
+
+    <rect x="56" y="534" width="1088" height="68" rx="14" fill="#102236" stroke="#36516d"/>
+    <text x="80" y="575" fill="#a9c1da" font-size="18">配合使用</text>
+    <path d="M176 554V582" stroke="#36516d"/>
+    <text x="201" y="575" fill="#e2e8f0" font-size="19">深浅主题</text>
+    <text x="390" y="575" fill="#e2e8f0" font-size="19">终端字号与快捷键</text>
+    <text x="676" y="575" fill="#e2e8f0" font-size="19">Linux 服务器状态</text>
+    <text x="970" y="575" fill="#e2e8f0" font-size="19">本地配置管理</text>
+  </g>
+</svg>
